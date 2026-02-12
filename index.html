@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>Happy Valentine's Day 💖</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js"></script>
 <style>
     body {
         margin: 0;
@@ -501,11 +506,49 @@
     </div>
 
 <script>
+// 🔥 FIREBASE SETUP - UPDATE THESE WITH YOUR FIREBASE CREDENTIALS
+// Get these from: https://console.firebase.google.com/
+const firebaseConfig = {
+    apiKey: "AIzaSyDemoKeyPleaseUpdateThis", // Replace with your API Key
+    authDomain: "your-project.firebaseapp.com", // Replace with your domain
+    databaseURL: "https://your-project-default-rtdb.firebaseio.com", // Replace with your database URL
+    projectId: "your-project-id", // Replace with your project ID
+    storageBucket: "your-project.appspot.com", // Replace with your storage bucket
+    messagingSenderId: "123456789", // Replace with your sender ID
+    appId: "1:123456789:web:abcdef123456" // Replace with your app ID
+};
+
+// Initialize Firebase
+let db, storage;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    storage = firebase.storage();
+    console.log("✅ Firebase initialized successfully!");
+} catch(e) {
+    console.warn("⚠️ Firebase not configured - using local storage fallback. Please update firebaseConfig!");
+}
+
+// Generate or get unique session ID
+function getSessionId() {
+    let sessionId = localStorage.getItem('valentineSessionId');
+    if(!sessionId) {
+        sessionId = 'valentine_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('valentineSessionId', sessionId);
+    }
+    return sessionId;
+}
+
+const sessionId = getSessionId();
+const dbRef = db ? db.ref('valentines/' + sessionId) : null;
+
 function setName() {
     let name = prompt("Enter your Valentine's name 💌");
     if(name) {
         document.getElementById("message").innerText =
             "Happy Valentine's Day, " + name + " 💖";
+        // Save to Firebase
+        if(dbRef) dbRef.child('name').set(name);
     }
 }
 
@@ -513,14 +556,33 @@ function setName() {
 function loadNameFromURL() {
     const params = new URLSearchParams(window.location.search);
     const sharedName = params.get('name');
-    if(sharedName) {
+    const sharedSessionId = params.get('sid');
+    
+    if(sharedSessionId && dbRef) {
+        // Load from Firebase using shared session ID
+        const sharedRef = db.ref('valentines/' + sharedSessionId);
+        sharedRef.once('value').then(snapshot => {
+            if(snapshot.exists()) {
+                const data = snapshot.val();
+                if(data.name) {
+                    document.getElementById("message").innerText =
+                        "Happy Valentine's Day, " + data.name + " 💖";
+                }
+                // Merge the images into localStorage for this view
+                if(data.image1Url) localStorage.setItem('valentineImage1', data.image1Url);
+                if(data.image2Url) localStorage.setItem('valentineImage2', data.image2Url);
+                if(data.answer) localStorage.setItem('valentineAnswer', data.answer);
+                loadSavedImages();
+            }
+        }).catch(err => console.log("Could not load from Firebase:", err));
+    } else if(sharedName) {
         const decodedName = decodeURIComponent(sharedName);
         document.getElementById("message").innerText =
             "Happy Valentine's Day, " + decodedName + " 💖";
     }
 }
 
-// Load saved images from localStorage
+// Load saved images
 function loadSavedImages() {
     const savedImage1 = localStorage.getItem('valentineImage1');
     const savedImage2 = localStorage.getItem('valentineImage2');
@@ -538,7 +600,6 @@ function loadSavedImages() {
         heartBox2.innerHTML = '<svg viewBox="0 0 240 280" preserveAspectRatio="none" style="fill: red;"><path d="M 120 280 C 60 240 20 200 20 140 C 20 100 50 70 90 70 C 110 70 130 80 120 100 C 110 80 130 70 150 70 C 190 70 220 100 220 140 C 220 200 180 240 120 280 Z"/></svg><img src="' + savedImage2 + '" alt="Second Valentine photo">';
     }
     
-    // Show heart indicator if answer was already given
     if(savedAnswer) {
         const heartIndicator = document.getElementById('heartIndicator');
         heartIndicator.textContent = savedAnswer === 'yes' ? '❤️' : '🤍';
@@ -546,7 +607,6 @@ function loadSavedImages() {
         heartIndicator.classList.add('show');
     }
     
-    // If both images are loaded, show share button and question section
     if(savedImage1 && savedImage2) {
         document.getElementById('shareBtn').style.display = 'inline-block';
         if(!savedAnswer) {
@@ -554,23 +614,11 @@ function loadSavedImages() {
                 document.getElementById('questionSection').classList.add('active');
             }, 500);
         } else {
-            // If answer was already given, show share section instead
             document.getElementById('shareSection').classList.add('active');
         }
     }
 }
 
-// Check if both images are loaded and show share button
-function checkAndShowShareBtn() {
-    const savedImage1 = localStorage.getItem('valentineImage1');
-    const savedImage2 = localStorage.getItem('valentineImage2');
-    
-    if(savedImage1 && savedImage2) {
-        document.getElementById('shareBtn').style.display = 'inline-block';
-    }
-}
-
-// Run on page load
 window.addEventListener('load', function() {
     loadNameFromURL();
     loadSavedImages();
@@ -595,7 +643,7 @@ function shareWithPersonalization() {
     }
     
     const currentUrl = window.location.href.split('?')[0];
-    const shareUrl = currentUrl + "?name=" + encodeURIComponent(name);
+    const shareUrl = currentUrl + "?name=" + encodeURIComponent(name) + "&sid=" + sessionId;
     
     navigator.clipboard.writeText(shareUrl).then(() => {
         alert(`✨ Link copied! When your friend opens it, they'll see:\n\n"Happy Valentine's Day, ${name} 💖"\n\n+ Your 2 photos will be displayed!\n\nShare this link with them now! 💕`);
@@ -722,8 +770,9 @@ function createFullScreenCelebration() {
 }
 
 function handleYes() {
-    // Save answer to localStorage
+    // Save answer to localStorage and Firebase
     localStorage.setItem('valentineAnswer', 'yes');
+    if(dbRef) dbRef.child('answer').set('yes');
     
     // Show red heart indicator
     const heartIndicator = document.getElementById('heartIndicator');
@@ -739,8 +788,9 @@ function handleYes() {
 }
 
 function handleNo() {
-    // Save answer to localStorage
+    // Save answer to localStorage and Firebase
     localStorage.setItem('valentineAnswer', 'no');
+    if(dbRef) dbRef.child('answer').set('no');
     
     // Show white heart indicator
     const heartIndicator = document.getElementById('heartIndicator');
@@ -849,6 +899,9 @@ document.getElementById('addPhotos').addEventListener('click', function () {
         const imageData = e.target.result;
         localStorage.setItem('valentineImage1', imageData);
         
+        // Save to Firebase if available
+        if(dbRef) dbRef.child('image1Url').set(imageData);
+        
         heartBox1.classList.remove('empty');
         heartBox1.innerHTML = '<svg viewBox="0 0 240 280" preserveAspectRatio="none" style="fill: red;"><path d="M 120 280 C 60 240 20 200 20 140 C 20 100 50 70 90 70 C 110 70 130 80 120 100 C 110 80 130 70 150 70 C 190 70 220 100 220 140 C 220 200 180 240 120 280 Z"/></svg><img src="' + imageData + '" alt="First Valentine photo">';
         
@@ -864,6 +917,9 @@ document.getElementById('addPhotos').addEventListener('click', function () {
     reader2.onload = function (e) {
         const imageData = e.target.result;
         localStorage.setItem('valentineImage2', imageData);
+        
+        // Save to Firebase if available
+        if(dbRef) dbRef.child('image2Url').set(imageData);
         
         heartBox2.classList.remove('empty');
         heartBox2.innerHTML = '<svg viewBox="0 0 240 280" preserveAspectRatio="none" style="fill: red;"><path d="M 120 280 C 60 240 20 200 20 140 C 20 100 50 70 90 70 C 110 70 130 80 120 100 C 110 80 130 70 150 70 C 190 70 220 100 220 140 C 220 200 180 240 120 280 Z"/></svg><img src="' + imageData + '" alt="Second Valentine photo">';
