@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Happy Valentine's Day 💖</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(to right, #ff9a9e, #fecfef);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .heart {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        background: red;
+        transform: rotate(-45deg);
+        animation: beat 1s infinite;
+        margin-bottom: 30px;
+    }
+
+    .heart::before,
+    .heart::after {
+        content: "";
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        background: red;
+        border-radius: 50%;
+    }
+
+    .heart::before {
+        top: -60px;
+        left: 0;
+    }
+
+    .heart::after {
+        left: 60px;
+        top: 0;
+    }
+
+    @keyframes beat {
+        0%, 100% { transform: scale(1) rotate(-45deg); }
+        50% { transform: scale(1.2) rotate(-45deg); }
+    }
+
+    h1 {
+        color: white;
+        text-shadow: 2px 2px 5px #d6336c;
+        text-align: center;
+    }
+
+    button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 20px;
+        background: #ff4d6d;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    button:hover {
+        background: #e63956;
+    }
+</style>
+</head>
+<body>
+
+<div class="heart"></div>
+
+<h1 id="message">Happy Valentine's Day murali 💖</h1>
+
+<button onclick="setName()">Personalize Message</button>
+
+<script>
+function setName() {
+    let name = prompt("Enter your Valentine’s name 💌");
+    if(name) {
+        document.getElementById("message").innerText =
+            "Happy Valentine's Day, " + name + " 💖";
+    }
+}
+</script>
+
+</body>
+</html>
