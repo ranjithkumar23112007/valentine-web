@@ -457,6 +457,35 @@
             transform: translate(-50%, -150%) scale(1);
         }
     }
+
+    /* Heart indicator above gallery */
+    .heart-indicator {
+        font-size: 60px;
+        text-align: center;
+        margin-bottom: 15px;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        animation: heartPulse 0.8s ease-in-out;
+    }
+
+    .heart-indicator.show {
+        opacity: 1;
+    }
+
+    @keyframes heartPulse {
+        0% {
+            opacity: 0;
+            transform: scale(0.3);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
 </style>
 </head>
 <body>
@@ -468,7 +497,7 @@
 
     <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
         <button onclick="setName()">Personalize Message</button>
-        <button onclick="shareWithPersonalization()" style="background: #4CAF50;">📤 Share</button>
+        <button id="shareBtn" onclick="shareWithPersonalization()" style="background: #4CAF50; display: none;">📤 Share with Friend</button>
     </div>
 
 <script>
@@ -495,6 +524,7 @@ function loadNameFromURL() {
 function loadSavedImages() {
     const savedImage1 = localStorage.getItem('valentineImage1');
     const savedImage2 = localStorage.getItem('valentineImage2');
+    const savedAnswer = localStorage.getItem('valentineAnswer');
     
     if(savedImage1) {
         const heartBox1 = document.getElementById('heart-box-1');
@@ -508,11 +538,35 @@ function loadSavedImages() {
         heartBox2.innerHTML = '<svg viewBox="0 0 240 280" preserveAspectRatio="none" style="fill: red;"><path d="M 120 280 C 60 240 20 200 20 140 C 20 100 50 70 90 70 C 110 70 130 80 120 100 C 110 80 130 70 150 70 C 190 70 220 100 220 140 C 220 200 180 240 120 280 Z"/></svg><img src="' + savedImage2 + '" alt="Second Valentine photo">';
     }
     
-    // If both images are loaded and we have a name from URL, show question section
+    // Show heart indicator if answer was already given
+    if(savedAnswer) {
+        const heartIndicator = document.getElementById('heartIndicator');
+        heartIndicator.textContent = savedAnswer === 'yes' ? '❤️' : '🤍';
+        heartIndicator.style.display = 'block';
+        heartIndicator.classList.add('show');
+    }
+    
+    // If both images are loaded, show share button and question section
     if(savedImage1 && savedImage2) {
-        setTimeout(() => {
-            document.getElementById('questionSection').classList.add('active');
-        }, 500);
+        document.getElementById('shareBtn').style.display = 'inline-block';
+        if(!savedAnswer) {
+            setTimeout(() => {
+                document.getElementById('questionSection').classList.add('active');
+            }, 500);
+        } else {
+            // If answer was already given, show share section instead
+            document.getElementById('shareSection').classList.add('active');
+        }
+    }
+}
+
+// Check if both images are loaded and show share button
+function checkAndShowShareBtn() {
+    const savedImage1 = localStorage.getItem('valentineImage1');
+    const savedImage2 = localStorage.getItem('valentineImage2');
+    
+    if(savedImage1 && savedImage2) {
+        document.getElementById('shareBtn').style.display = 'inline-block';
     }
 }
 
@@ -544,7 +598,7 @@ function shareWithPersonalization() {
     const shareUrl = currentUrl + "?name=" + encodeURIComponent(name);
     
     navigator.clipboard.writeText(shareUrl).then(() => {
-        alert(`✨ Link copied! When your friend opens it, they'll see:\n\n"Happy Valentine's Day, ${name} 💖"\n\n+ Your photos will be displayed!\n\nShare this link with them now! 💕`);
+        alert(`✨ Link copied! When your friend opens it, they'll see:\n\n"Happy Valentine's Day, ${name} 💖"\n\n+ Your 2 photos will be displayed!\n\nShare this link with them now! 💕`);
     }).catch(() => {
         alert(`Share this link:\n${shareUrl}`);
     });
@@ -553,6 +607,8 @@ function shareWithPersonalization() {
 
 
     <div class="gallery-section">
+        <div id="heartIndicator" class="heart-indicator" style="display: none;">❤️</div>
+        
         <div class="upload-controls" aria-label="Add your photos">
             <label for="upload1" class="visually-hidden">Upload first photo</label>
             <input id="upload1" type="file" accept="image/*" aria-label="Choose first image to upload">
@@ -666,6 +722,15 @@ function createFullScreenCelebration() {
 }
 
 function handleYes() {
+    // Save answer to localStorage
+    localStorage.setItem('valentineAnswer', 'yes');
+    
+    // Show red heart indicator
+    const heartIndicator = document.getElementById('heartIndicator');
+    heartIndicator.textContent = '❤️';
+    heartIndicator.style.display = 'block';
+    heartIndicator.classList.add('show');
+    
     createFullScreenCelebration();
     setTimeout(() => {
         document.getElementById('questionSection').style.display = 'none';
@@ -674,6 +739,15 @@ function handleYes() {
 }
 
 function handleNo() {
+    // Save answer to localStorage
+    localStorage.setItem('valentineAnswer', 'no');
+    
+    // Show white heart indicator
+    const heartIndicator = document.getElementById('heartIndicator');
+    heartIndicator.textContent = '🤍';
+    heartIndicator.style.display = 'block';
+    heartIndicator.classList.add('show');
+    
     const noBtn = document.querySelector('.no-btn');
     noBtn.textContent = 'Maybe next year? 💝';
     setTimeout(() => {
@@ -799,9 +873,10 @@ document.getElementById('addPhotos').addEventListener('click', function () {
         const centerY2 = rect2.top + rect2.height / 2;
         createCrackerBurst(centerX2, centerY2);
         
-        // Show question section after both images are loaded
+        // Show question section and share button after both images are loaded
         setTimeout(() => {
             document.getElementById('questionSection').classList.add('active');
+            document.getElementById('shareBtn').style.display = 'inline-block';
         }, 1500);
     };
     reader2.readAsDataURL(file2);
